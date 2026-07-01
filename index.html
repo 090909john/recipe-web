@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F6F2EA">
+<link rel="manifest" href="manifest.json">
+<title>食譜收藏夾</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,'Noto Sans TC',sans-serif;background:#e8e4dc}
+
+/* ── Shell ─────────────────────────────────────────────── */
+#shell{
+  position:fixed;top:0;bottom:0;
+  left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;
+  display:flex;flex-direction:column;
+  background:#F6F2EA;
+  box-shadow:0 0 40px rgba(0,0,0,.12);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+#hdr{background:#F6F2EA;padding:20px 22px 14px;flex-shrink:0}
+.hdr-row{display:flex;align-items:center;gap:8px}
+.hdr-titles{flex:1;min-width:0}
+.app-label{font-family:monospace;font-size:10px;font-weight:700;color:#2C5249;letter-spacing:.2em;text-transform:uppercase}
+.app-title{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#1B1813;margin-top:3px}
+.hdr-btns{display:flex;gap:8px;flex-shrink:0}
+#hdr-sep{height:1px;background:#E6DFD2;flex-shrink:0}
+
+/* ── Scroll ──────────────────────────────────────────────── */
+#scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:110px}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn{font-family:inherit;cursor:pointer;border:none;font-size:14px;border-radius:8px;padding:9px 15px;white-space:nowrap}
+.btn-secondary{background:#fff;border:1.5px solid #E6DFD2;color:#2C5249}
+.btn-primary{background:#2C5249;color:#fff;font-weight:700}
+.btn-danger{background:#fff;border:1.5px solid #e55;color:#c33}
+.btn-block{width:100%;text-align:center;padding:12px}
+
+/* ── FAB ──────────────────────────────────────────────────── */
+#fab{
+  position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+  background:#2C5249;color:#fff;font-size:15px;font-weight:700;
+  border:none;border-radius:999px;padding:15px 32px;
+  cursor:pointer;box-shadow:0 12px 28px -8px rgba(44,82,73,.6);
+  white-space:nowrap;z-index:10;font-family:inherit;
+}
+
+/* ── Search ──────────────────────────────────────────────── */
+.search-wrap{padding:20px 22px 0}
+.search-input{
+  width:100%;border:none;border-bottom:1.5px solid #1B1813;
+  background:transparent;font-size:15px;color:#1B1813;
+  padding:4px 0 10px;outline:none;font-family:inherit;
+}
+.search-input::placeholder{color:#9A9182}
+
+/* ── Category tabs ───────────────────────────────────────── */
+.tab-wrap{margin-top:18px;border-bottom:1px solid #E6DFD2}
+.tab-scrl{display:flex;overflow-x:auto;padding:0 22px;gap:22px;scrollbar-width:none}
+.tab-scrl::-webkit-scrollbar{display:none}
+.tab{display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0}
+.tab-lbl{font-size:14px;color:#9A9182;padding-bottom:10px;white-space:nowrap}
+.tab.active .tab-lbl{color:#1B1813;font-weight:700}
+.tab-bar{height:2px;width:100%;background:transparent;margin-top:-1px}
+.tab.active .tab-bar{background:#1B1813}
+
+/* ── Recipe grid ──────────────────────────────────────────── */
+.list-hdr{display:flex;align-items:center;padding:24px 22px 16px}
+.list-ttl{font-family:Georgia,serif;font-size:20px;font-weight:700;color:#1B1813;flex:1}
+.list-cnt{font-size:13px;color:#9A9182}
+.grid{padding:0 22px;display:grid;grid-template-columns:1fr 1fr;gap:16px 12px}
+.card{background:#fff;border:1px solid #E6DFD2;border-radius:14px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.card:active{opacity:.85}
+.card-img{width:100%;height:130px;object-fit:cover;background:#ECE6DA;display:block}
+.card-ph{width:100%;height:130px;background:#ECE6DA;display:flex;align-items:center;justify-content:center;font-size:28px}
+.card-body{padding:8px 10px 10px}
+.card-cat{font-size:11px;color:#2C5249;font-weight:700;letter-spacing:.04em}
+.card-ttl{font-family:Georgia,serif;font-size:14px;font-weight:700;color:#1B1813;margin-top:2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-meta{font-size:12px;color:#9A9182;margin-top:3px}
+.empty{text-align:center;padding:48px 22px;color:#9A9182;font-size:15px;line-height:1.7}
+
+/* ── Inner screen ──────────────────────────────────────────── */
+.screen{padding:0 20px 20px}
+.screen-ttl{font-family:Georgia,serif;font-size:24px;font-weight:700;color:#1B1813;padding:16px 0 12px}
+.sec-ttl{font-size:17px;font-weight:700;color:#1B1813;padding:18px 0 8px}
+
+/* ── Forms ────────────────────────────────────────────────── */
+.form-lbl{display:block;font-size:12px;font-weight:700;color:#2C5249;letter-spacing:.04em;text-transform:uppercase;margin:16px 0 5px}
+.form-input,.form-textarea,.form-select{
+  width:100%;border:1.5px solid #E6DFD2;border-radius:8px;
+  padding:11px 13px;font-size:15px;color:#1B1813;
+  background:#fff;font-family:inherit;outline:none;
+}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:#2C5249}
+.form-textarea{resize:vertical;min-height:100px;line-height:1.6}
+.form-row{display:flex;gap:8px;margin-top:8px}
+.form-row .btn{flex:1;text-align:center}
+
+/* ── Detail ────────────────────────────────────────────────── */
+.detail-cat{font-size:13px;font-weight:700;color:#2C5249;padding-top:10px}
+.detail-img{width:100%;height:200px;object-fit:cover;border-radius:12px;margin:10px 0;background:#ECE6DA;display:block}
+.ctrl-row{display:flex;gap:10px;padding:8px 0 4px}
+.ctrl-row .btn{flex:1;text-align:center;padding:12px}
+.list-item{font-size:15px;color:#1B1813;padding:7px 0;border-bottom:1px solid #F3EDE3;line-height:1.5}
+.list-item:last-child{border:none}
+
+/* ── Sources ────────────────────────────────────────────────── */
+.src-card{background:#fff;border:1px solid #E6DFD2;border-radius:10px;padding:11px 13px;margin-bottom:8px;position:relative}
+.src-card-clickable{cursor:pointer}
+.src-ttl{font-size:13px;font-weight:700;color:#2C5249}
+.src-sub{font-size:12px;color:#9A9182;margin-top:2px;word-break:break-all;line-height:1.4}
+.src-img{width:100%;height:130px;object-fit:cover;border-radius:7px;margin-bottom:8px;display:block}
+.src-del{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.9);border:1px solid #E6DFD2;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;color:#c33;font-family:inherit}
+
+/* ── Categories ─────────────────────────────────────────────── */
+.cat-item{display:flex;align-items:center;padding:13px 0;border-bottom:1px solid #F3EDE3;gap:10px}
+.cat-item:last-child{border:none}
+.cat-name{flex:1;font-size:15px;color:#1B1813}
+.cat-del{background:none;border:none;color:#c33;font-size:18px;cursor:pointer;padding:4px 8px;font-family:inherit}
+
+/* ── Gist setup ─────────────────────────────────────────────── */
+.info-box{background:#ECE6DA;border-radius:10px;padding:14px;font-size:13px;line-height:1.75;color:#1B1813;margin-bottom:4px}
+.info-box code{background:#fff;padding:1px 5px;border-radius:4px;font-size:12px}
+.status-msg{font-size:13px;margin-top:12px;min-height:20px;line-height:1.5}
+.badge{display:inline-block;font-size:11px;color:#2C5249;background:#ECE6DA;border-radius:999px;padding:3px 10px;margin-left:6px;font-weight:700}
+
+/* ── Sheet modal ────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:18px 22px 40px;width:100%;max-width:480px}
+.sheet-ttl{font-size:16px;font-weight:700;color:#1B1813;margin-bottom:12px}
+.sheet-opt{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #F3EDE3;cursor:pointer;font-size:16px;color:#1B1813;background:none;border-left:none;border-right:none;border-top:none;width:100%;text-align:left;font-family:inherit}
+.sheet-opt:last-child{border-bottom:none}
+.sheet-ico{font-size:20px;width:28px;text-align:center}
+
+/* ── Toast ───────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+  background:#1B1813;color:#fff;padding:10px 22px;border-radius:999px;
+  font-size:14px;z-index:500;opacity:0;transition:opacity .2s;
+  pointer-events:none;white-space:nowrap;font-family:inherit;
+}
+#toast.show{opacity:1}
+
+/* ── Sync dot ──────────────────────────────────────────────── */
+.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2C5249;margin-left:4px;vertical-align:middle;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="hdr">
+    <div class="hdr-row">
+      <div class="hdr-titles">
+        <div class="app-label">My Kitchen</div>
+        <div class="app-title">食譜收藏夾</div>
+      </div>
+      <div class="hdr-btns" id="hdr-btns"></div>
+    </div>
+  </div>
+  <div id="hdr-sep"></div>
+  <div id="scroll"></div>
+  <button id="fab">＋&nbsp;&nbsp;新增 / 匯入</button>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── UUID ───────────────────────────────────────────────────────
+const uuid = () => 'id' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+// ── State ──────────────────────────────────────────────────────
+let db = { recipes: [], categories: [] };
+let gist = { token: '', gistId: '' };
+let view = { name: 'home', params: {} };
+let selCat = 'all';
+let search = '';
+let syncTimer = null;
+
+const STORE = 'recipe_v1';
+const GIST_STORE = 'recipe_gist_v1';
+const GIST_FILE = 'recipe-collector.json';
+
+// ── Local storage ──────────────────────────────────────────────
+function loadLocal() {
+  try { const r = localStorage.getItem(STORE); if (r) db = JSON.parse(r); } catch {}
+  try { const g = localStorage.getItem(GIST_STORE); if (g) gist = JSON.parse(g); } catch {}
+  if (!db.recipes) db.recipes = [];
+  if (!db.categories || !db.categories.length) {
+    db.categories = ['待整理','早餐','午餐','晚餐','點心'].map(n => ({ id: uuid(), name: n }));
+    saveLocal();
+  }
+}
+
+function saveLocal() { localStorage.setItem(STORE, JSON.stringify(db)); }
+function saveGist() { localStorage.setItem(GIST_STORE, JSON.stringify(gist)); }
+
+// ── Gist API ───────────────────────────────────────────────────
+const ghHeaders = () => ({
+  'Authorization': `Bearer ${gist.token}`,
+  'Content-Type': 'application/json',
+  'X-GitHub-Api-Version': '2022-11-28',
+});
+
+async function pushToGist() {
+  if (!gist.token || !gist.gistId) return false;
+  try {
+    const body = JSON.stringify({ version: 1, ...db }, null, 2);
+    const res = await fetch(`https://api.github.com/gists/${gist.gistId}`, {
+      method: 'PATCH', headers: ghHeaders(),
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: body } } }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+async function pullFromGist() {
+  if (!gist.token || !gist.gistId) return false;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gist.gistId}`, { headers: ghHeaders() });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const file = data.files[GIST_FILE];
+    if (!file) return false;
+    const parsed = JSON.parse(file.content);
+    if (parsed.recipes) db.recipes = parsed.recipes;
+    if (parsed.categories) db.categories = parsed.categories;
+    saveLocal();
+    return true;
+  } catch { return false; }
+}
+
+async function createNewGist() {
+  if (!gist.token) return null;
+  try {
+    const body = JSON.stringify({ version: 1, ...db }, null, 2);
+    const res = await fetch('https://api.github.com/gists', {
+      method: 'POST', headers: ghHeaders(),
+      body: JSON.stringify({ description: '食譜收藏夾備份', public: false, files: { [GIST_FILE]: { content: body } } }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()).id;
+  } catch { return null; }
+}
+
+// 儲存後延遲同步，避免每次按鍵都打 API
+function scheduleSync() {
+  saveLocal();
+  if (!gist.token || !gist.gistId) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    const ok = await pushToGist();
+    if (!ok) toast('本地已儲存，Gist 同步失敗');
+  }, 1200);
+}
+
+// ── Navigate ───────────────────────────────────────────────────
+function go(name, params = {}) { view = { name, params }; render(); }
+
+// ── Toast ──────────────────────────────────────────────────────
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+const catName = id => (db.categories.find(c => c.id === id) || {}).name || '未分類';
+const firstCatId = () => (db.categories[0] || {}).id || '';
+const pendingCatId = () => {
+  const c = db.categories.find(c => c.name === '待整理');
+  return c ? c.id : firstCatId();
+};
+
+function ytId(url) {
+  const m = url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+const ytThumb = url => { const id = ytId(url); return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null; };
+
+function recipeThumb(recipe) {
+  for (const s of (recipe.sources || [])) {
+    if (s.type === 'youtube') { const t = ytThumb(s.value); if (t) return t; }
+    if (s.thumbnailUrl) return s.thumbnailUrl;
+    if (s.type === 'image' && s.value) return s.value;
+  }
+  return null;
+}
+
+function matches(recipe) {
+  if (selCat !== 'all' && recipe.categoryId !== selCat) return false;
+  if (!search) return true;
+  const q = search.toLowerCase();
+  return [recipe.title, catName(recipe.categoryId), ...(recipe.ingredients||[]), ...(recipe.steps||[])]
+    .join(' ').toLowerCase().includes(q);
+}
+
+const fileToData = file => new Promise((ok, err) => {
+  const r = new FileReader(); r.onload = e => ok(e.target.result); r.onerror = err; r.readAsDataURL(file);
+});
+
+function srcLabel(s) {
+  if (s.type === 'youtube') return 'YouTube';
+  if (s.type === 'link') return '連結';
+  if (s.type === 'text') return '文字';
+  if (s.type === 'image') return '圖片';
+  return s.title || '來源';
+}
+
+// ── DOM builder ─────────────────────────────────────────────────
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'cls') e.className = v;
+    else if (k === 'css') Object.assign(e.style, v);
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null) continue;
+    e.append(typeof kid === 'string' ? document.createTextNode(kid) : kid);
+  }
+  return e;
+}
+const div = (cls, ...kids) => h('div', { cls }, ...kids);
+
+// ── Sheet ────────────────────────────────────────────────────────
+function showSheet(title, opts) {
+  const ov = h('div', { cls: 'overlay' });
+  const sh = div('sheet', h('div', { cls: 'sheet-ttl' }, title));
+  for (const o of opts) {
+    sh.append(h('button', { cls: 'sheet-opt', onclick: () => { ov.remove(); o.fn(); } },
+      h('span', { cls: 'sheet-ico' }, o.icon || ''), o.label));
+  }
+  ov.append(sh);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.append(ov);
+}
+
+// ── Render entry ─────────────────────────────────────────────────
+function render() {
+  document.getElementById('scroll').innerHTML = '';
+  document.getElementById('hdr-btns').innerHTML = '';
+  const fab = document.getElementById('fab');
+  fab.style.display = '';
+  fab.textContent = '＋  新增 / 匯入';
+  fab.onclick = showImportSheet;
+
+  if (view.name === 'home') renderHome();
+  else if (view.name === 'detail') renderDetail(view.params.r);
+  else if (view.name === 'editor') renderEditor(view.params.r, view.params.isNew);
+  else if (view.name === 'cats') renderCats();
+  else if (view.name === 'gist') renderGistSetup();
+}
+
+// ── Home ──────────────────────────────────────────────────────────
+function renderHome() {
+  const sc = document.getElementById('scroll');
+  const hb = document.getElementById('hdr-btns');
+
+  if (gist.token && gist.gistId) hb.append(h('span', { cls: 'badge' }, '☁ Gist'));
+  hb.append(
+    h('button', { cls: 'btn btn-secondary', onclick: () => go('cats') }, '分類'),
+    h('button', { cls: 'btn btn-secondary', onclick: showMoreSheet }, '⋮'),
+  );
+
+  // Search
+  const searchInput = h('input', { cls: 'search-input', type: 'search', placeholder: '搜尋食譜、材料、步驟…', value: search });
+  searchInput.addEventListener('input', e => { search = e.target.value.trim(); refreshGrid(); });
+  sc.append(div('search-wrap', searchInput));
+
+  // Tabs
+  const tabScrl = div('tab-scrl');
+  for (const cat of [{ id: 'all', name: '全部' }, ...db.categories]) {
+    const tab = h('div', { cls: 'tab' + (cat.id === selCat ? ' active' : ''), onclick: () => { selCat = cat.id; render(); } },
+      h('span', { cls: 'tab-lbl' }, cat.name),
+      div('tab-bar')
+    );
+    tabScrl.append(tab);
+  }
+  sc.append(div('tab-wrap', tabScrl));
+
+  // List header
+  const cntEl = h('span', { cls: 'list-cnt' });
+  sc.append(h('div', { cls: 'list-hdr' },
+    h('div', { cls: 'list-ttl' }, '最近收藏'),
+    cntEl
+  ));
+
+  // Grid
+  const grid = div('grid');
+  sc.append(grid);
+  window._grid = grid;
+  window._cntEl = cntEl;
+  refreshGrid();
+}
+
+function refreshGrid() {
+  const grid = window._grid;
+  const cntEl = window._cntEl;
+  if (!grid) return;
+  grid.innerHTML = '';
+  const list = db.recipes.filter(matches);
+  cntEl.textContent = list.length + ' 道';
+
+  if (!list.length) {
+    const msg = search ? `找不到「${search}」的食譜` : '還沒有食譜，點下方按鈕新增吧。';
+    grid.replaceWith(h('div', { cls: 'empty' }, msg));
+    return;
+  }
+
+  for (const r of list) {
+    const thumb = recipeThumb(r);
+    const card = h('div', { cls: 'card', onclick: () => go('detail', { r }) },
+      thumb ? h('img', { cls: 'card-img', src: thumb, loading: 'lazy' }) : div('card-ph', '🍽'),
+      div('card-body',
+        div('card-cat', catName(r.categoryId)),
+        div('card-ttl', r.title),
+        div('card-meta', `${(r.ingredients||[]).length} 材料 · ${(r.steps||[]).length} 步驟`)
+      )
+    );
+    grid.append(card);
+  }
+}
+
+// ── Import sheet ─────────────────────────────────────────────────
+function showImportSheet() {
+  showSheet('新增 / 匯入食譜', [
+    { icon: '📄', label: '新增空白食譜', fn: () => go('editor', { r: blankRecipe(), isNew: true }) },
+    { icon: '🔗', label: '連結（YouTube / IG / Threads…）', fn: promptLink },
+    { icon: '📝', label: '貼上文字', fn: promptText },
+    { icon: '🖼', label: '選取圖片', fn: promptImage },
+  ]);
+}
+
+function showMoreSheet() {
+  const gLabel = (gist.token && gist.gistId) ? 'GitHub Gist 同步設定 ✓' : 'GitHub Gist 雲端備份';
+  showSheet('更多功能', [
+    { icon: '☁', label: gLabel, fn: () => go('gist') },
+    { icon: '📤', label: '匯出備份 (.json)', fn: exportBackup },
+    { icon: '📥', label: '匯入備份 (.json)', fn: importBackup },
+  ]);
+}
+
+function blankRecipe() {
+  return { id: uuid(), title: '新食譜', categoryId: pendingCatId(), ingredients: [], steps: [], sources: [], createdAt: Date.now() };
+}
+
+function promptLink() {
+  const url = prompt('貼上 YouTube、IG、Threads 或其他食譜連結：');
+  if (!url?.trim()) return;
+  const r = blankRecipe();
+  const thumb = ytThumb(url) || '';
+  r.sources.push({ type: url.match(/youtu/i) ? 'youtube' : 'link', value: url.trim(), title: '連結來源', note: '', thumbnailUrl: thumb });
+  go('editor', { r, isNew: true });
+}
+
+function promptText() {
+  const text = prompt('貼上食譜文字：');
+  if (!text?.trim()) return;
+  const r = blankRecipe();
+  r.steps = text.trim().split('\n').map(s => s.trim()).filter(Boolean);
+  r.sources.push({ type: 'text', value: text.trim(), title: '文字來源', note: '', thumbnailUrl: '' });
+  go('editor', { r, isNew: true });
+}
+
+function promptImage() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    const data = await fileToData(f);
+    const r = blankRecipe();
+    r.sources.push({ type: 'image', value: data, title: f.name, note: '', thumbnailUrl: data });
+    go('editor', { r, isNew: true });
+  };
+  inp.click();
+}
+
+// ── Detail ───────────────────────────────────────────────────────
+function renderDetail(recipe) {
+  const fab = document.getElementById('fab');
+  fab.style.display = 'none';
+  document.getElementById('hdr-btns').append(
+    h('button', { cls: 'btn btn-secondary', onclick: () => go('home') }, '返回')
+  );
+
+  const sc = document.getElementById('scroll');
+  const wrap = div('screen');
+
+  wrap.append(h('div', { cls: 'detail-cat' }, catName(recipe.categoryId)));
+  wrap.append(h('div', { cls: 'screen-ttl' }, recipe.title));
+
+  const thumb = recipeThumb(recipe);
+  if (thumb) wrap.append(h('img', { cls: 'detail-img', src: thumb }));
+
+  wrap.append(h('div', { cls: 'ctrl-row' },
+    h('button', { cls: 'btn btn-primary', onclick: () => go('editor', { r: recipe, isNew: false }) }, '編輯'),
+    h('button', { cls: 'btn btn-danger', onclick: () => {
+      if (!confirm(`刪除「${recipe.title}」？`)) return;
+      db.recipes = db.recipes.filter(r => r.id !== recipe.id);
+      scheduleSync(); go('home'); toast('已刪除');
+    }}, '刪除')
+  ));
+
+  if ((recipe.ingredients||[]).length) {
+    wrap.append(h('div', { cls: 'sec-ttl' }, '材料清單'));
+    for (const ing of recipe.ingredients) wrap.append(div('list-item', ing));
+  }
+
+  if ((recipe.steps||[]).length) {
+    wrap.append(h('div', { cls: 'sec-ttl' }, '製作流程'));
+    recipe.steps.forEach((s, i) => wrap.append(div('list-item', `${i+1}. ${s}`)));
+  }
+
+  if ((recipe.sources||[]).length) {
+    wrap.append(h('div', { cls: 'sec-ttl' }, '來源'));
+    for (const s of recipe.sources) {
+      const card = div('src-card' + (s.type !== 'text' ? ' src-card-clickable' : ''));
+      const tUrl = s.thumbnailUrl || (s.type === 'youtube' ? ytThumb(s.value) : null);
+      if (tUrl) card.append(h('img', { cls: 'src-img', src: tUrl }));
+      card.append(div('src-ttl', srcLabel(s)));
+      card.append(div('src-sub', s.type === 'text' ? s.value.slice(0, 120) + (s.value.length > 120 ? '…' : '') : s.value));
+      if (s.type !== 'text') card.onclick = () => window.open(s.value, '_blank', 'noopener');
+      wrap.append(card);
+    }
+  }
+
+  sc.append(wrap);
+}
+
+// ── Editor ────────────────────────────────────────────────────────
+function renderEditor(recipe, isNew) {
+  const fab = document.getElementById('fab');
+  const goBack = isNew ? () => go('home') : () => go('detail', { r: db.recipes.find(r => r.id === recipe.id) || recipe });
+
+  document.getElementById('hdr-btns').append(
+    h('button', { cls: 'btn btn-secondary', onclick: goBack }, '取消')
+  );
+
+  const editing = JSON.parse(JSON.stringify(recipe));
+
+  fab.textContent = '✓  儲存食譜';
+  fab.onclick = async () => {
+    editing.title = titleIn.value.trim() || '未命名食譜';
+    editing.categoryId = catSel.value;
+    editing.ingredients = ingIn.value.split('\n').map(s => s.trim()).filter(Boolean);
+    editing.steps = stepIn.value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (isNew) db.recipes.unshift(editing);
+    else { const i = db.recipes.findIndex(r => r.id === editing.id); if (i >= 0) db.recipes[i] = editing; }
+    scheduleSync();
+    toast('已儲存');
+    go('detail', { r: editing });
+  };
+
+  const sc = document.getElementById('scroll');
+  const wrap = div('screen');
+  wrap.append(h('div', { cls: 'screen-ttl' }, isNew ? '新增食譜' : '編輯食譜'));
+
+  // Title
+  wrap.append(h('label', { cls: 'form-lbl' }, '食譜名稱'));
+  const titleIn = h('input', { cls: 'form-input', type: 'text', value: editing.title });
+  wrap.append(titleIn);
+
+  // Category
+  wrap.append(h('label', { cls: 'form-lbl' }, '分類'));
+  const catSel = h('select', { cls: 'form-select' });
+  for (const c of db.categories) {
+    const opt = h('option', { value: c.id }, c.name);
+    if (c.id === editing.categoryId) opt.selected = true;
+    catSel.append(opt);
+  }
+  wrap.append(catSel);
+
+  // Ingredients
+  wrap.append(h('label', { cls: 'form-lbl' }, '材料清單（每行一項）'));
+  const ingIn = h('textarea', { cls: 'form-textarea' });
+  ingIn.value = (editing.ingredients||[]).join('\n');
+  wrap.append(ingIn);
+
+  // Steps
+  wrap.append(h('label', { cls: 'form-lbl' }, '製作流程（每行一步）'));
+  const stepIn = h('textarea', { cls: 'form-textarea', css: { minHeight: '140px' } });
+  stepIn.value = (editing.steps||[]).join('\n');
+  wrap.append(stepIn);
+
+  // Sources
+  wrap.append(h('div', { cls: 'sec-ttl' }, '來源'));
+  const srcBox = div('');
+  renderSrcBox(srcBox, editing);
+  wrap.append(srcBox);
+
+  // Add source buttons
+  const addRow = h('div', { cls: 'form-row' });
+  addRow.append(
+    h('button', { cls: 'btn btn-secondary', onclick: () => {
+      const url = prompt('貼上連結：'); if (!url?.trim()) return;
+      const thumb = ytThumb(url) || '';
+      editing.sources.push({ type: url.match(/youtu/i) ? 'youtube' : 'link', value: url.trim(), title: '連結', note: '', thumbnailUrl: thumb });
+      renderSrcBox(srcBox, editing);
+    }}, '＋ 連結'),
+    h('button', { cls: 'btn btn-secondary', onclick: () => {
+      const t = prompt('貼上文字：'); if (!t?.trim()) return;
+      editing.sources.push({ type: 'text', value: t.trim(), title: '文字', note: '', thumbnailUrl: '' });
+      renderSrcBox(srcBox, editing);
+    }}, '＋ 文字'),
+    h('button', { cls: 'btn btn-secondary', onclick: () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return;
+        const data = await fileToData(f);
+        editing.sources.push({ type: 'image', value: data, title: f.name, note: '', thumbnailUrl: data });
+        renderSrcBox(srcBox, editing);
+      };
+      inp.click();
+    }}, '＋ 圖片'),
+  );
+  wrap.append(addRow);
+
+  sc.append(wrap);
+}
+
+function renderSrcBox(box, editing) {
+  box.innerHTML = '';
+  (editing.sources||[]).forEach((s, i) => {
+    const card = div('src-card');
+    const tUrl = s.thumbnailUrl || (s.type === 'youtube' ? ytThumb(s.value) : null);
+    if (tUrl) card.append(h('img', { cls: 'src-img', src: tUrl }));
+    card.append(div('src-ttl', srcLabel(s)));
+    const preview = s.type === 'text' ? s.value.slice(0, 60) + '…' : s.value.slice(0, 60);
+    card.append(div('src-sub', preview));
+    card.append(h('button', { cls: 'src-del', onclick: () => { editing.sources.splice(i, 1); renderSrcBox(box, editing); } }, '刪除'));
+    box.append(card);
+  });
+}
+
+// ── Categories ────────────────────────────────────────────────────
+function renderCats() {
+  const fab = document.getElementById('fab');
+  fab.style.display = 'none';
+  document.getElementById('hdr-btns').append(
+    h('button', { cls: 'btn btn-secondary', onclick: () => go('home') }, '返回')
+  );
+
+  const sc = document.getElementById('scroll');
+  const wrap = div('screen');
+  wrap.append(h('div', { cls: 'screen-ttl' }, '分類管理'));
+
+  const list = div('');
+  const refresh = () => {
+    list.innerHTML = '';
+    for (const c of db.categories) {
+      list.append(div('cat-item',
+        h('span', { cls: 'cat-name' }, c.name),
+        h('button', { cls: 'cat-del', onclick: () => {
+          if (db.categories.length <= 1) { toast('至少保留一個分類'); return; }
+          if (!confirm(`刪除分類「${c.name}」？`)) return;
+          db.categories = db.categories.filter(x => x.id !== c.id);
+          scheduleSync(); refresh(); toast(`已刪除「${c.name}」`);
+        }}, '✕')
+      ));
+    }
+  };
+  refresh();
+  wrap.append(list);
+
+  const newIn = h('input', { cls: 'form-input', type: 'text', placeholder: '新分類名稱', css: { marginTop: '16px' } });
+  const addBtn = h('button', { cls: 'btn btn-primary', css: { marginTop: '8px', width: '100%' }, onclick: () => {
+    const name = newIn.value.trim(); if (!name) return;
+    if (db.categories.find(c => c.name === name)) { toast('分類名稱重複'); return; }
+    db.categories.push({ id: uuid(), name });
+    scheduleSync(); newIn.value = ''; refresh(); toast(`已新增「${name}」`);
+  }}, '新增分類');
+  wrap.append(newIn, addBtn);
+  sc.append(wrap);
+}
+
+// ── Gist Setup ────────────────────────────────────────────────────
+function renderGistSetup() {
+  const fab = document.getElementById('fab');
+  fab.style.display = 'none';
+  document.getElementById('hdr-btns').append(
+    h('button', { cls: 'btn btn-secondary', onclick: () => go('home') }, '返回')
+  );
+
+  const sc = document.getElementById('scroll');
+  const wrap = div('screen');
+  wrap.append(h('div', { cls: 'screen-ttl' }, 'GitHub Gist 設定'));
+
+  wrap.append(h('p', { css: { color: '#9A9182', fontSize: '14px', lineHeight: '1.7', marginBottom: '16px' } },
+    '設定後，食譜資料會自動備份到你的 GitHub Gist，換手機或電腦都能同步。'));
+
+  const howTo = div('info-box');
+  howTo.innerHTML = `<strong>如何取得 Token：</strong><br>
+1. 登入 GitHub → 右上角頭像 → <strong>Settings</strong><br>
+2. 左側最底部 <strong>Developer settings</strong><br>
+3. Personal access tokens → Tokens (classic)<br>
+4. Generate new token → 勾選 <code>gist</code> → 複製 token`;
+  wrap.append(howTo);
+
+  wrap.append(h('label', { cls: 'form-lbl' }, 'Personal Access Token'));
+  const tokenIn = h('input', { cls: 'form-input', type: 'password', placeholder: 'ghp_xxxxxxxxxxxxxxxx', value: gist.token });
+  wrap.append(tokenIn);
+
+  wrap.append(h('label', { cls: 'form-lbl' }, 'Gist ID'));
+  wrap.append(h('p', { css: { fontSize: '12px', color: '#9A9182', marginBottom: '4px' } }, '已有 Gist 則填入，否則點「建立新 Gist」'));
+  const gistIn = h('input', { cls: 'form-input', type: 'text', placeholder: 'a1b2c3d4e5f6…', value: gist.gistId });
+  wrap.append(gistIn);
+
+  const statusEl = h('div', { cls: 'status-msg', css: { color: '#9A9182' } });
+  wrap.append(statusEl);
+
+  const setStatus = (msg, ok) => {
+    statusEl.textContent = msg;
+    statusEl.style.color = ok === true ? '#2C5249' : ok === false ? '#c33' : '#9A9182';
+  };
+
+  const syncInput = () => {
+    gist.token = tokenIn.value.trim();
+    gist.gistId = gistIn.value.trim();
+    saveGist();
+  };
+
+  const btnRow = h('div', { cls: 'form-row', css: { flexWrap: 'wrap', gap: '8px', marginTop: '16px' } });
+
+  btnRow.append(h('button', { cls: 'btn btn-primary', css: { flex: '1', minWidth: '120px' }, onclick: async () => {
+    syncInput();
+    if (!gist.gistId) { setStatus('請先建立 Gist 或填入 Gist ID', false); return; }
+    setStatus('測試中…', null);
+    const ok = await pushToGist();
+    setStatus(ok ? '✅ 連線成功！資料已推送。' : '❌ 失敗，請確認 Token / Gist ID。', ok);
+    if (ok) render();
+  }}, '儲存並測試'));
+
+  btnRow.append(h('button', { cls: 'btn btn-secondary', css: { flex: '1', minWidth: '120px' }, onclick: async () => {
+    gist.token = tokenIn.value.trim();
+    if (!gist.token) { setStatus('請先填入 Token', false); return; }
+    setStatus('建立中…', null);
+    const id = await createNewGist();
+    if (id) {
+      gist.gistId = id; gistIn.value = id; saveGist();
+      setStatus(`✅ 已建立！Gist ID: ${id}`, true);
+    } else { setStatus('❌ 建立失敗，確認 Token 有 gist 權限', false); }
+  }}, '建立新 Gist'));
+
+  btnRow.append(h('button', { cls: 'btn btn-secondary', css: { flex: '1', minWidth: '120px' }, onclick: async () => {
+    syncInput();
+    if (!gist.token || !gist.gistId) { setStatus('請填入 Token 和 Gist ID', false); return; }
+    setStatus('從 Gist 載入中…', null);
+    const ok = await pullFromGist();
+    setStatus(ok ? `✅ 已載入 ${db.recipes.length} 道食譜` : '❌ 載入失敗', ok);
+    if (ok) render();
+  }}, '從 Gist 載入'));
+
+  if (gist.token || gist.gistId) {
+    btnRow.append(h('button', { cls: 'btn btn-danger', css: { flex: '1', minWidth: '120px' }, onclick: () => {
+      if (!confirm('清除 Gist 設定？本地資料不受影響。')) return;
+      gist.token = ''; gist.gistId = ''; saveGist(); go('home'); toast('已清除 Gist 設定');
+    }}, '清除設定'));
+  }
+
+  wrap.append(btnRow);
+  sc.append(wrap);
+}
+
+// ── Backup ────────────────────────────────────────────────────────
+function exportBackup() {
+  const json = JSON.stringify({ version: 1, ...db }, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = `recipe-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function importBackup() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,application/json';
+  inp.onchange = () => {
+    const f = inp.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const p = JSON.parse(e.target.result);
+        if (p.recipes) db.recipes = p.recipes;
+        if (p.categories) db.categories = p.categories;
+        scheduleSync(); go('home'); toast(`已匯入 ${db.recipes.length} 道食譜`);
+      } catch { toast('格式錯誤，匯入失敗'); }
+    };
+    reader.readAsText(f);
+  };
+  inp.click();
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+loadLocal();
+if (gist.token && gist.gistId) {
+  pullFromGist().then(ok => { if (ok) { render(); toast('已從 Gist 同步'); } });
+}
+render();
+</script>
+</body>
+</html>
